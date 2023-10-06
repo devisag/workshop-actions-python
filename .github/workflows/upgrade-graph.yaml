@@ -6,6 +6,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
       
       - uses: actions/checkout@master
@@ -33,7 +35,12 @@ jobs:
           git diff-index --quiet HEAD || (git commit -a -m "updated logs" --allow-empty)
 
       - name: filecheck
-        run: python slack.py
+        uses: act10ns/slack@v1
+        with:
+          status: starting
+          channel: '#filecheck'
+          message: Datos GT Actualizados
+        if: always()
           
       - name: push changes
         uses: ad-m/github-push-action@v0.6.0
