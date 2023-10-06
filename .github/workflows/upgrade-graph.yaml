@@ -18,4 +18,4 @@ jobs:
             python-version: '3.x'
 
       - name: Process data 
-        run: make all
+        run: main.py
