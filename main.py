@@ -1,34 +1,38 @@
-import pandas as pd
-from pytrends.request import TrendReq
-import matplotlib.pyplot as plt
+import json
 import csv
+import requests
 
-def busquedas():
-  pytrends = TrendReq(hl='es')
+# Descarga los datos JSON de la IMF
+url_periods = 'https://www.imf.org/external/datamapper/api/v1/PCPIPCH?periods=2023'
+url_countries = 'https://www.imf.org/external/datamapper/api/v1/countries'
 
-  ## querys a analizar
-  querys = ['Massa', 'Milei', 'Bullrich', 'Bregman', 'Schiaretti']
+response_periods = requests.get(url_periods)
+response_countries = requests.get(url_countries)
 
-  ## cargamos parametros
-  pytrends.build_payload(querys, cat=0, timeframe='now 1-H', geo='AR')
+data_periods = json.loads(response_periods.text)
+data_countries = json.loads(response_countries.text)
 
-  ##ejecutamos
-  df = pytrends.interest_over_time()
+# Extrae los datos requeridos de inflación
+values = data_periods['values']['PCPIPCH']
+csvData = [[key, values[key]['2023']] for key in values.keys()]
 
-  df_local = pytrends.interest_by_region(resolution='COUNTRY').reset_index()
-  df_filter = df_local[(df_local['Massa'] != 0) | (df_local['Milei'] != 0) | (df_local['Bullrich'] != 0) | (df_local['Bregman'] != 0) | (df_local['Schiaretti'] != 0)]
+# Extrae los datos de países y crea un diccionario
+country_data_dict = data_countries['countries']
 
-  fig, ax = plt.subplots(figsize= (40,10))
+# Combina los datos de inflación con los nombres de los países
+for row in csvData:
+    country_code = row[0]
+    country_name = country_data_dict.get(country_code, {}).get('label', '')
+    row.insert(0, f'"{country_name}"')
 
-  ax.bar(df_filter['geoName'], df_filter['Massa'], color='blue')
-  ax.bar(df_filter['geoName'], df_filter['Milei'], color='purple')
-  ax.bar(df_filter['geoName'], df_filter['Bullrich'], color='yellow')
-  ax.bar(df_filter['geoName'], df_filter['Bregman'], color='red')
-  ax.bar(df_filter['geoName'], df_filter['Schiaretti'], color='green')
-  plt.xticks(rotation=90)
-  ##plt.show()
-  
-  df = pd.DataFrame(df_filter)
-  df.to_csv("datos_google_trends.csv", index=False)
+# Convierte los datos a formato CSV
+csv = '\n'.join([','.join(map(str, row)) for row in csvData])
 
-busquedas()
+# Agrega encabezados
+csv_with_headers = "country,code,inflation_rate\n" + csv
+
+# Escribe los datos CSV en un archivo
+with open('./data/inflation.csv', 'w', newline='') as csv_file:
+    csv_file.write(csv_with_headers)
+
+print('CSV file generated successfully.')
